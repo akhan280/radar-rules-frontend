@@ -1,0 +1,58 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @map("id")
+  projects    Project[]
+  csvUploads  CsvUpload[]
+
+  @@map("users")
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  userId      String    @map("user_id")
+  name        String    @map("name")
+  description String?   @map("description")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  user        User      @relation(fields: [userId], references: [id])
+  csvUploads  CsvUpload[]
+
+  @@map("projects")
+}
+
+model CsvUpload {
+  id             Int       @id @default(autoincrement())
+  userId         String    @map("user_id")
+  projectId      Int?      @map("project_id")
+  csvPath        String    @map("csv_path")
+  cleanedCsvPath String?   @map("cleaned_csv_path")
+  status         String  
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  user           User      @relation(fields: [userId], references: [id])
+  project        Project?  @relation(fields: [projectId], references: [id])
+  results        FraudAnalysisResult[]
+
+  @@map("csv_uploads")
+}
+
+model FraudAnalysisResult {
+  id           Int      @id @default(autoincrement())
+  csvUploadId  Int      @map("csv_upload_id")
+  fraudCount   Int      @map("fraud_count")
+  topFeatures  Json     @map("top_features")
+  rules        Json     @map("rules")
+  createdAt    DateTime @default(now()) @map("created_at")
+  csvUpload    CsvUpload @relation(fields: [csvUploadId], references: [id])
+
+  @@map("fraud_analysis_results")
+}
