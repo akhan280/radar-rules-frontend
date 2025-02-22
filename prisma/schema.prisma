@@ -19,7 +19,7 @@ model User {
 }
 
 model Project {
-  id          Int       @id @default(autoincrement())
+  id          String    @id @default(cuid())
   userId      String    @map("user_id")
   name        String    @map("name")
   description String?   @map("description")
@@ -32,9 +32,9 @@ model Project {
 }
 
 model CsvUpload {
-  id             Int       @id @default(autoincrement())
+  id             String    @id @default(cuid())
   userId         String    @map("user_id")
-  projectId      Int?      @map("project_id")
+  projectId      String?   @map("project_id")
   csvPath        String    @map("csv_path")
   cleanedCsvPath String?   @map("cleaned_csv_path")
   status         String  
@@ -48,12 +48,12 @@ model CsvUpload {
 }
 
 model FraudAnalysisResult {
-  id           Int      @id @default(autoincrement())
-  csvUploadId  Int      @map("csv_upload_id")
-  fraudCount   Int      @map("fraud_count")
-  topFeatures  Json     @map("top_features")
-  rules        Json     @map("rules")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String    @id @default(cuid())
+  csvUploadId  String    @map("csv_upload_id")
+  fraudCount   Int       @map("fraud_count")
+  topFeatures  Json      @map("top_features")
+  rules        Json      @map("rules")
+  createdAt    DateTime  @default(now()) @map("created_at")
   csvUpload    CsvUpload @relation(fields: [csvUploadId], references: [id])
 
   @@map("fraud_analysis_results")

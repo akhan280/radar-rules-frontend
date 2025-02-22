@@ -1,6 +1,5 @@
 "use client"
 
-import { getAllProjects, createProject, updateProject, deleteProject } from "@/lib/actions/project-actions"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -8,25 +7,34 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { PencilIcon, PlusIcon, TrashIcon } from "lucide-react"
+import { MoreVertical, PencilIcon, TrashIcon } from "lucide-react"
 import { Project } from "@prisma/client"
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
+import { CreateProjectForm } from "@/components/create-project-form"
+import { EditProjectForm } from "@/components/edit-project-form"
+import Link from "next/link"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useProjects, useProjectActions } from '@/lib/store'
 
 export default function ProjectsPage() {
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [success, setSuccess] = useState(true);
+    const { projects, isLoading, error } = useProjects()
+    const { fetchProjects } = useProjectActions()
 
     useEffect(() => {
-        getAllProjects().then(({ projects, success }) => {
-            setProjects(projects);
-            setSuccess(success);
-        });
-    }, []);
+        fetchProjects()
+    }, [fetchProjects])
 
-    if (!success) {
-        return <div>Failed to load projects</div>
+    if (error) {
+        return <div>Failed to load projects: {error}</div>
+    }
+
+    if (isLoading) {
+        return <div>Loading projects...</div>
     }
 
     return (
@@ -38,81 +46,76 @@ export default function ProjectsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projects.map((project) => (
-                    <ProjectCard key={project.id} project={project} />
+                    <ProjectCard 
+                        key={project.id} 
+                        project={project}
+                    />
                 ))}
             </div>
         </div>
     )
 }
 
-function CreateProjectForm() {
-    return (
-        <form 
-            action={async (formData: FormData) => {
-                const name = formData.get('name') as string
-                const description = formData.get('description') as string
-                await createProject(name, description)
-            }}
-            className="flex gap-2"
-        >
-            <Input
-                name="name"
-                placeholder="Project name"
-                required
-                className="w-48"
-            />
-            <Input
-                name="description"
-                placeholder="Description"
-                className="w-48"
-            />
-            <Button type="submit">
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Create
-            </Button>
-        </form>
-    )
+interface ProjectCardProps {
+    project: Project;
 }
 
-function ProjectCard({ project }: { project: Project }) {
-    return (
-        <Card>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>{project.name}</CardTitle>
-                        <CardDescription>{project.description}</CardDescription>
-                    </div>
-                    <div className="flex gap-2">
-                        <EditProjectForm project={project} />
-                        <form
-                            action={async () => {
-                                await deleteProject(project.id)
-                            }}
-                        >
-                            <Button variant="destructive" size="icon">
-                                <TrashIcon className="h-4 w-4" />
-                            </Button>
-                        </form>
-                    </div>
-                </div>
-            </CardHeader>
-        </Card>
-    )
-}
+function ProjectCard({ project }: ProjectCardProps) {
+    const { removeProject } = useProjectActions()
 
-function EditProjectForm({ project }: { project: Project }) {
+    const handleDelete = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        await removeProject(project.id);
+    };
+
+    const handleDropdownClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
     return (
-        <form
-            action={async (formData: FormData) => {
-                const name = formData.get('name') as string
-                const description = formData.get('description') as string
-                await updateProject(project.id, name, description)
-            }}
-        >
-            <Button variant="outline" size="icon">
-                <PencilIcon className="h-4 w-4" />
-            </Button>
-        </form>
+        <Link href={`/dashboard/${project.id}`} className="block">
+            <Card className="transition-shadow hover:shadow-md">
+                <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>{project.name}</CardTitle>
+                            <CardDescription>{project.description}</CardDescription>
+                        </div>
+                        <div className="relative" onClick={handleDropdownClick}>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={handleDropdownClick}>
+                                    <Button variant="ghost" size="icon">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" onClick={handleDropdownClick}>
+                                    <EditProjectForm
+                                        project={project}
+                                        trigger={
+                                            <DropdownMenuItem onSelect={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                            }}>
+                                                <PencilIcon className="mr-2 h-4 w-4" />
+                                                Edit
+                                            </DropdownMenuItem>
+                                        }
+                                    />
+                                    <DropdownMenuItem
+                                        className="text-red-600"
+                                        onClick={handleDelete}
+                                    >
+                                        <TrashIcon className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                </CardHeader>
+            </Card>
+        </Link>
     )
 }
