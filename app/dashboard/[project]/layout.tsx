@@ -14,7 +14,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
         redirect('/auth/login')
     }
 
-    const { project: projectId } = params
+    const { project: projectId } = await params
     const { project, success } = await getProject(projectId)
 
     if (!success || !project) {
