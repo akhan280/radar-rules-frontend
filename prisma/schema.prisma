@@ -8,12 +8,14 @@ datasource db {
 }
 
 model User {
-  id          String    @id @map("id")
-  email       String    @map("email")
-  firstName   String?   @map("first_name")
-  lastName    String?   @map("last_name")
-  projects    Project[]
-  csvUploads  CsvUpload[]
+  id                    String    @id @map("id")
+  email                 String    @map("email")
+  firstName             String?   @map("first_name")
+  lastName              String?   @map("last_name")
+  isPaid               Boolean   @default(false) @map("is_paid")
+  hasCompletedOnboarding Boolean   @default(false) @map("has_completed_onboarding")
+  projects              Project[]
+  csvUploads            CsvUpload[]
 
   @@map("users")
 }

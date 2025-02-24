@@ -10,8 +10,8 @@ import {
 import { MoreVertical, PencilIcon, TrashIcon } from "lucide-react"
 import { Project } from "@prisma/client"
 import { useEffect } from "react"
-import { CreateProjectForm } from "@/components/create-project-form"
-import { EditProjectForm } from "@/components/edit-project-form"
+import { CreateProjectForm } from "@/components/project-create-form"
+import { EditProjectForm } from "@/components/project-edit-form"
 import Link from "next/link"
 import {
     DropdownMenu,
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
     }
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto">
             <div className="flex justify-between items-center mb-8">
                 <h1 className="text-2xl font-bold">Projects</h1>
                 <CreateProjectForm />

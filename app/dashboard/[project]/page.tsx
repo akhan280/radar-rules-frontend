@@ -26,7 +26,7 @@ export default async function Project({ params }: { params: { project: string } 
     }
 
     return (
-        <div className="container mx-auto py-8 space-y-8">
+        <div className="container mx-auto space-y-8">
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold">{project.name}</h1>

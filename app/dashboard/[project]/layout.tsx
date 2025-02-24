@@ -27,7 +27,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
     }
     
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto">
             {children}
         </div>
     )
