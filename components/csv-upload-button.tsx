@@ -5,21 +5,26 @@ import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { createCsvUploadRecord } from "@/lib/actions/upload-actions"
 import { toast } from "sonner"
-import { Loader2, Upload } from "lucide-react"
+import { Loader2, Upload, CheckCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/supabase-client"
 import { Progress } from "@/components/ui/progress"
+import { useStore } from "@/lib/store"
+import { TrainModelButton } from "./train-model-button"
+import { motion, AnimatePresence } from "framer-motion"
 
 interface CsvUploadProps {
-    projectId?: string;
+    projectId: string;
 }
 
-type UploadStatus = 'idle' | 'preparing' | 'uploading' | 'processing' | 'complete';
+type UploadStatus = 'idle' | 'uploading' | 'uploaded' | 'preprocessing' | 'preprocessed' | 'training' | 'complete';
 
 export function CsvUpload({ projectId }: CsvUploadProps) {
     const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
     const [uploadProgress, setUploadProgress] = useState(0)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const progressInterval = useRef<number | undefined>(undefined)
+    const addCsvUpload = useStore(state => state.addCsvUpload)
+    const [currentUploadId, setCurrentUploadId] = useState<string | null>(null)
 
     // Cleanup interval on unmount
     useEffect(() => {
@@ -40,9 +45,18 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
                     }
                     return 90
                 }
-                return prev + 10
+                return prev + 5 // Slower progress
             })
-        }, 500)
+        }, 200) // Faster updates
+    }
+
+    const handleTrainingComplete = () => {
+        setUploadStatus('complete')
+        setTimeout(() => {
+            setUploadStatus('idle')
+            setUploadProgress(0)
+            setCurrentUploadId(null)
+        }, 2000)
     }
 
     async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -56,8 +70,9 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
         }
 
         try {
-            setUploadStatus('preparing')
+            setUploadStatus('uploading')
             setUploadProgress(0)
+            toast.info('Uploading CSV file...')
             
             const supabase = createClient()
             
@@ -68,34 +83,33 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
             }
 
             // Create user-specific path
-            const filePath = `${user.id}/csv/${Date.now()}-${file.name}`
+            const filePath = `${user.id}/${Date.now()}-${file.name}`
             
-            setUploadStatus('uploading')
             simulateProgress()
 
-            // Upload file to Supabase Storage in user's folder
+            // Upload file to Supabase Storage
             const { data, error } = await supabase.storage
                 .from('csv-default-uploads')
                 .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: true // Allow overwriting in user's own directory
+                    upsert: true
                 })
 
-            if (error) {
-                throw error
-            }
-
-            if (!data?.path) {
-                throw new Error('Upload failed - no path returned')
-            }
+            if (error) throw error
+            if (!data?.path) throw new Error('Upload failed - no path returned')
 
             // Clear progress simulation
             if (progressInterval.current) {
                 clearInterval(progressInterval.current)
             }
             setUploadProgress(100)
+            setUploadStatus('uploaded')
+            toast.success('File uploaded successfully')
             
-            setUploadStatus('processing')
+            // Preprocessing step
+            toast.info('Preprocessing data...')
+            setUploadStatus('preprocessing')
+            
             // Create database record
             const { success, csvUpload, error: dbError } = await createCsvUploadRecord(data.path, projectId)
             
@@ -103,37 +117,25 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
                 throw new Error(dbError || 'Failed to create database record')
             }
 
-            // Call preprocessing Lambda
-            const preprocessResponse = await fetch('/api/data-preprocessing', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    csvUploadId: csvUpload.id
-                })
+            addCsvUpload(projectId, {
+                ...csvUpload,
+                results: []
             })
 
-            if (!preprocessResponse.ok) {
-                const errorData = await preprocessResponse.json()
-                throw new Error(errorData.message || 'Failed to process CSV file')
-            }
-
-            setUploadStatus('complete')
-            toast.success('CSV file uploaded and processed successfully')
+            setCurrentUploadId(csvUpload.id)
+            setUploadStatus('preprocessed')
+            toast.success('Data preprocessing complete')
             
+            // Start training
+            setUploadStatus('training')
+            toast.info('Starting model training...')
+
             // Reset file input
             if (fileInputRef.current) {
                 fileInputRef.current.value = ''
             }
-
-            // Reset status after a delay
-            setTimeout(() => {
-                setUploadStatus('idle')
-                setUploadProgress(0)
-            }, 2000)
         } catch (error) {
-            // Clear progress simulation on error
+            // Clear progress simulation
             if (progressInterval.current) {
                 clearInterval(progressInterval.current)
             }
@@ -146,14 +148,18 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
 
     const getStatusText = () => {
         switch (uploadStatus) {
-            case 'preparing':
-                return 'Preparing upload...'
             case 'uploading':
                 return `Uploading... ${uploadProgress}%`
-            case 'processing':
-                return 'Processing data...'
+            case 'uploaded':
+                return 'Upload Complete!'
+            case 'preprocessing':
+                return 'Preprocessing Data...'
+            case 'preprocessed':
+                return 'Preprocessing Complete!'
+            case 'training':
+                return 'Training Model...'
             case 'complete':
-                return 'Upload complete!'
+                return 'All Done!'
             default:
                 return 'Upload CSV'
         }
@@ -191,14 +197,49 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
                 </Button>
             </div>
             
-            {uploadStatus !== 'idle' && (
-                <div className="w-full max-w-sm space-y-2">
-                    <Progress value={uploadProgress} className="h-2" />
-                    <p className="text-sm text-muted-foreground text-center">
-                        {getStatusText()}
-                    </p>
-                </div>
-            )}
+            <AnimatePresence>
+                {uploadStatus !== 'idle' && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="space-y-4 bg-accent/50 p-4 rounded-lg"
+                    >
+                        <div className="w-full max-w-sm space-y-2">
+                            <Progress value={uploadProgress} className="h-2" />
+                            <div className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                    {uploadStatus === 'uploading' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                    <p className="font-medium">{getStatusText()}</p>
+                                </div>
+                                {(uploadStatus === 'uploaded' || uploadStatus === 'preprocessed' || uploadStatus === 'complete') && (
+                                    <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        className="text-green-500"
+                                    >
+                                        <CheckCircle className="h-5 w-5" />
+                                    </motion.div>
+                                )}
+                            </div>
+                        </div>
+
+                        {uploadStatus === 'training' && currentUploadId && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                            >
+                                <TrainModelButton 
+                                    csv_upload_id={currentUploadId}
+                                    projectId={projectId}
+                                    autoStart={true}
+                                    onTrainingComplete={handleTrainingComplete}
+                                />
+                            </motion.div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     )
 } 

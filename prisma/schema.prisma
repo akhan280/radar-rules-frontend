@@ -42,19 +42,21 @@ model CsvUpload {
   updatedAt      DateTime  @updatedAt @map("updated_at")
   user           User      @relation(fields: [userId], references: [id])
   project        Project?  @relation(fields: [projectId], references: [id])
-  results        FraudAnalysisResult[]
+  results        FraudAnalysisResult[] @relation("CsvUploadResults")
 
   @@map("csv_uploads")
 }
 
 model FraudAnalysisResult {
-  id           String    @id @default(cuid())
-  csvUploadId  String    @map("csv_upload_id")
-  fraudCount   Int       @map("fraud_count")
-  topFeatures  Json      @map("top_features")
-  rules        Json      @map("rules")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  csvUpload    CsvUpload @relation(fields: [csvUploadId], references: [id])
+  id                      String    @id @default(cuid())
+  projectId              String    @map("project_id")
+  csvUploadId            String    @map("csv_upload_id")
+  fraudCount             Int       @map("fraud_count")
+  f1OptimizedRules       Json      @map("f1_optimized_rules")
+  precisionOptimizedRules Json      @map("precision_optimized_rules")
+  moneyOptimizedRules    Json      @map("money_optimized_rules")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  csvUpload              CsvUpload @relation("CsvUploadResults", fields: [csvUploadId], references: [id], onDelete: Cascade)
 
   @@map("fraud_analysis_results")
 }

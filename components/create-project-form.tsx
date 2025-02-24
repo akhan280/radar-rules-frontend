@@ -35,35 +35,25 @@ export function CreateProjectForm() {
         }
     }
 
-    const handleDialogClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
     return (
         <Dialog 
             open={open} 
-            onOpenChange={(open) => {
-                setOpen(open);
-                if (!open) {
-                    handleDialogClick({ preventDefault: () => {}, stopPropagation: () => {} } as React.MouseEvent);
-                }
-            }}
+            onOpenChange={setOpen}
         >
-            <DialogTrigger asChild onClick={handleDialogClick}>
+            <DialogTrigger asChild>
                 <Button>
                     <PlusIcon className="mr-2 h-4 w-4" />
                     Create Project
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]" onClick={handleDialogClick}>
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Create New Project</DialogTitle>
                     <DialogDescription>
                         Create a new project to organize your rules and configurations.
                     </DialogDescription>
                 </DialogHeader>
-                <form action={handleSubmit} className="space-y-4" onClick={handleDialogClick}>
+                <form action={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <label htmlFor="name" className="text-sm font-medium">
                             Project Name
