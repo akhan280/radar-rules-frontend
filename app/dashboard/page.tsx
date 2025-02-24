@@ -19,11 +19,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useProjects, useProjectActions } from '@/lib/store'
+import { useMainStore } from "../../lib/store"
 
 export default function ProjectsPage() {
-    const { projects, isLoading, error } = useProjects()
-    const { fetchProjects } = useProjectActions()
+    const { projects, isLoading, error, fetchProjects} = useMainStore()
 
     useEffect(() => {
         fetchProjects()
@@ -61,7 +60,7 @@ interface ProjectCardProps {
 }
 
 function ProjectCard({ project }: ProjectCardProps) {
-    const { removeProject } = useProjectActions()
+    const { removeProject } = useMainStore()
 
     const handleDelete = async (e: React.MouseEvent) => {
         e.preventDefault();

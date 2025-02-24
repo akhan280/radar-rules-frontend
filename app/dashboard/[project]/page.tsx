@@ -7,7 +7,6 @@ import { CsvUpload } from "../../../components/csv-upload-button"
 export default async function Project({ params }: { params: { project: string } }) {
     const projectId = (await params).project
 
-    console.log(`ProjectID`, projectId)
     const project = await prisma.project.findUnique({
         where: { id: projectId },
         include: {

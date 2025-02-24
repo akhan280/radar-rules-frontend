@@ -8,9 +8,9 @@ import { toast } from "sonner"
 import { Loader2, Upload, CheckCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/supabase-client"
 import { Progress } from "@/components/ui/progress"
-import { useStore } from "@/lib/store"
 import { TrainModelButton } from "./train-model-button"
 import { motion, AnimatePresence } from "framer-motion"
+import { useMainStore } from "../lib/store"
 
 interface CsvUploadProps {
     projectId: string;
@@ -23,7 +23,7 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
     const [uploadProgress, setUploadProgress] = useState(0)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const progressInterval = useRef<number | undefined>(undefined)
-    const addCsvUpload = useStore(state => state.addCsvUpload)
+    const { addCsvUpload, updateCsvUpload } = useMainStore()
     const [currentUploadId, setCurrentUploadId] = useState<string | null>(null)
 
     // Cleanup interval on unmount
@@ -87,6 +87,20 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
             
             simulateProgress()
 
+            // Create database record with UPLOADING status
+            const { success, csvUpload, error: dbError } = await createCsvUploadRecord(filePath, projectId)
+            
+            if (!success || dbError || !csvUpload) {
+                throw new Error(dbError || 'Failed to create database record')
+            }
+
+            // Add the new upload to the store with UPLOADING status
+            addCsvUpload(projectId, {
+                ...csvUpload,
+                status: 'UPLOADING',
+                results: []
+            });
+
             // Upload file to Supabase Storage
             const { data, error } = await supabase.storage
                 .from('csv-default-uploads')
@@ -106,21 +120,12 @@ export function CsvUpload({ projectId }: CsvUploadProps) {
             setUploadStatus('uploaded')
             toast.success('File uploaded successfully')
             
+            // Update to PROCESSING status
+            updateCsvUpload(projectId, csvUpload.id, { status: 'PROCESSING' });
+            
             // Preprocessing step
             toast.info('Preprocessing data...')
             setUploadStatus('preprocessing')
-            
-            // Create database record
-            const { success, csvUpload, error: dbError } = await createCsvUploadRecord(data.path, projectId)
-            
-            if (!success || dbError || !csvUpload) {
-                throw new Error(dbError || 'Failed to create database record')
-            }
-
-            addCsvUpload(projectId, {
-                ...csvUpload,
-                results: []
-            })
 
             setCurrentUploadId(csvUpload.id)
             setUploadStatus('preprocessed')

@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import { updateUploadStatus } from '@/lib/actions/upload-actions';
 import { toast } from 'sonner';
-import { useStore } from '@/lib/store';
+import { useMainStore } from '../lib/store';
 
 interface TrainModelButtonProps {
     csv_upload_id: string;
@@ -22,7 +22,7 @@ export function TrainModelButton({
     onTrainingFailed
 }: TrainModelButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
-    const updateCsvUpload = useStore(state => state.updateCsvUpload);
+    const { updateCsvUpload } = useMainStore();
 
     useEffect(() => {
         if (autoStart) {
@@ -33,26 +33,42 @@ export function TrainModelButton({
     const handleTrainModel = async () => {
         try {
             setIsLoading(true);
-            // Update local state to PROCESSING
-            updateCsvUpload(projectId, csv_upload_id, { status: 'PROCESSING' });
+            // Update local state to TRAINING
+            updateCsvUpload(projectId, csv_upload_id, { status: 'TRAINING' });
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_ML_URL}/api/train/${csv_upload_id}`, {
                 method: 'POST',
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to start model training');
-            }
-
             // Wait for training to complete
             const result = await response.json();
             
-            // Update status to COMPLETED and add results
+            if (!result?.results) {
+                throw new Error('Failed to start model training: No results returned');
+            }
+            
+            // First update the database
             await updateUploadStatus(csv_upload_id, 'COMPLETED');
-            updateCsvUpload(projectId, csv_upload_id, { 
+
+            // Then update the local state with both status and results
+            const fraudAnalysisResult = {
+                id: result.results.id,
+                projectId: result.results.project_id,
+                csvUploadId: result.results.csv_upload_id,
+                fraudCount: result.results.fraud_count,
+                f1OptimizedRules: result.results.f1_optimized_rules,
+                precisionOptimizedRules: result.results.precision_optimized_rules,
+                moneyOptimizedRules: result.results.money_optimized_rules,
+                createdAt: new Date(result.results.created_at)
+            };
+
+            // Update the upload in the store
+            updateCsvUpload(projectId, csv_upload_id, {
                 status: 'COMPLETED',
-                results: result.results || []
+                results: [fraudAnalysisResult]
             });
+            
+            toast.success('Training completed successfully');
             
             if (onTrainingComplete) {
                 onTrainingComplete();

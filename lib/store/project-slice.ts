@@ -17,18 +17,24 @@ export interface ExtendedProject extends Project {
 
 export interface ProjectSlice {
   projects: ExtendedProject[]
+  selectedProject: ExtendedProject | null
   isLoading: boolean
   error: string | null
+  
   fetchProjects: () => Promise<void>
   addProject: (name: string, description: string) => Promise<{ project: Project | null; success: boolean }>
   updateProject: (id: string, name: string, description: string) => Promise<{ success: boolean }>
   removeProject: (id: string) => Promise<{ success: boolean }>
+  
+  initializeProjectUploads: (projectId: string, uploads: ExtendedCsvUpload[]) => void
   addCsvUpload: (projectId: string, csvUpload: ExtendedCsvUpload) => void
+  removeCsvUpload: (projectId: string, uploadId: string) => void
   updateCsvUpload: (projectId: string, csvUploadId: string, updates: Partial<ExtendedCsvUpload>) => void
 }
 
 export const createProjectSlice: StateCreator<ProjectSlice> = (set) => ({
   projects: [],
+  selectedProject: null,
   isLoading: false,
   error: null,
 
@@ -100,6 +106,32 @@ export const createProjectSlice: StateCreator<ProjectSlice> = (set) => ({
                 upload.id === csvUploadId
                   ? { ...upload, ...updates }
                   : upload
+              ),
+            }
+          : project
+      ),
+    }))
+  },
+
+  initializeProjectUploads: (projectId: string, uploads: ExtendedCsvUpload[]) => {
+    console.log(`projectID`, projectId, uploads)
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId
+          ? { ...project, csvUploads: uploads }
+          : project
+      ),
+    }))
+  },
+
+  removeCsvUpload: (projectId: string, uploadId: string) => {
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.id === projectId
+          ? {
+              ...project,
+              csvUploads: project.csvUploads.filter(
+                (upload) => upload.id !== uploadId
               ),
             }
           : project

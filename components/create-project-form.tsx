@@ -13,12 +13,12 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, PlusIcon } from "lucide-react"
 import { useState } from "react"
-import { useProjectActions } from "@/lib/store"
+import { useMainStore } from "../lib/store"
 
 export function CreateProjectForm() {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const { addProject } = useProjectActions()
+    const { addProject } = useMainStore()
 
     async function handleSubmit(formData: FormData) {
         try {

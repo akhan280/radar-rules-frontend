@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "lucide-react"
 import { useState } from "react"
 import { Project } from "@prisma/client"
-import { useProjectActions } from "@/lib/store"
+import { useMainStore } from "../lib/store"
 
 interface EditProjectFormProps {
     project: Project;
@@ -24,7 +24,7 @@ interface EditProjectFormProps {
 export function EditProjectForm({ project, trigger }: EditProjectFormProps) {
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const { updateProject } = useProjectActions()
+    const { updateProject } = useMainStore()
 
     async function handleSubmit(formData: FormData) {
         try {

@@ -5,7 +5,7 @@ import {
     CardContent,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileIcon, AlertCircle, CheckCircle, ArrowRight, RefreshCw, Trash2 } from "lucide-react"
+import { FileIcon, AlertCircle, CheckCircle, ArrowRight, RefreshCw, Trash2, UploadCloudIcon } from "lucide-react"
 import { ExtendedCsvUpload } from '@/lib/store/project-slice'
 import { formatDistanceToNow } from 'date-fns'
 import RulesView from './rules-view'
@@ -23,20 +23,50 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { prisma } from "@/lib/prisma"
+import { useShallow } from 'zustand/react/shallow'
+import { useMainStore } from '../lib/store'
 
 interface CsvUploadsViewProps {
     uploads: ExtendedCsvUpload[];
     projectId: string;
 }
 
-export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
+export function CsvUploadsView({ uploads: initialUploads, projectId }: CsvUploadsViewProps) {
     const [selectedUpload, setSelectedUpload] = useState<string | null>(null)
     const [retrainingId, setRetrainingId] = useState<string | null>(null)
 
+    const {initializeProjectUploads, removeCsvUpload, projects, fetchProjects} = useMainStore(useShallow((state) => ({
+        initializeProjectUploads: state.initializeProjectUploads,
+        removeCsvUpload: state.removeCsvUpload,
+        projects: state.projects,
+        fetchProjects: state.fetchProjects
+    })))
+
+    useEffect(() => {
+        // Fetch projects if not available
+        if (projects.length === 0) {
+            fetchProjects();
+        }
+        // Initialize the project's uploads in Zustand on first render
+        initializeProjectUploads(projectId, initialUploads);
+    }, [projectId, initialUploads, initializeProjectUploads, projects.length, fetchProjects]);
+
+    const uploads = [...(projects.find(p => p.id === projectId)?.csvUploads || initialUploads)]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const activeUpload = uploads.find(u => u.id === selectedUpload);
+
+    console.log('Data', projects.find(p => p.id === projectId)?.csvUploads, 'projectId', projectId)
+    console.log(`Uploads View`, uploads)
+
     const getStatusIcon = (status: string) => {
         switch (status?.toUpperCase()) {
+            case 'UPLOADING':
+                return <UploadCloudIcon className="h-4 w-4 text-blue-500" />
             case 'PROCESSING':
-                return <AlertCircle className="h-4 w-4 text-yellow-500" />
+                return <RefreshCw className="h-4 w-4 text-yellow-500 animate-spin" />
+            case 'TRAINING':
+                return <RefreshCw className="h-4 w-4 text-purple-500 animate-spin" />
             case 'FAILED':
                 return <AlertCircle className="h-4 w-4 text-red-500" />
             case 'COMPLETED':
@@ -48,14 +78,35 @@ export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
 
     const getStatusText = (status: string) => {
         switch (status?.toUpperCase()) {
+            case 'UPLOADING':
+                return 'Uploading CSV'
             case 'PROCESSING':
-                return 'Processing'
+                return 'Processing Data'
+            case 'TRAINING':
+                return 'Training ML Model'
             case 'FAILED':
-                return 'Failed'
+                return 'Analysis Failed'
             case 'COMPLETED':
-                return 'Completed'
+                return 'Analysis Complete'
             default:
-                return 'Unknown'
+                return 'Unknown Status'
+        }
+    }
+
+    const getStatusColor = (status: string) => {
+        switch (status?.toUpperCase()) {
+            case 'UPLOADING':
+                return 'text-blue-500'
+            case 'PROCESSING':
+                return 'text-yellow-500'
+            case 'TRAINING':
+                return 'text-purple-500'
+            case 'FAILED':
+                return 'text-red-500'
+            case 'COMPLETED':
+                return 'text-green-500'
+            default:
+                return 'text-muted-foreground'
         }
     }
 
@@ -68,8 +119,11 @@ export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
             const result = await deleteUpload(uploadId)
             if (result.success) {
                 toast.success('Upload deleted successfully')
-                // Refresh the page to update the list
-                window.location.reload()
+                // Remove from Zustand state instead of reloading
+                removeCsvUpload(projectId, uploadId);
+                if (selectedUpload === uploadId) {
+                    setSelectedUpload(null);
+                }
             } else {
                 throw new Error(result.error)
             }
@@ -78,9 +132,6 @@ export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
             console.error('Delete error:', error)
         }
     }
-
-    // Get the selected upload's details
-    const activeUpload = uploads.find(u => u.id === selectedUpload)
 
     return (
         <div className="space-y-4">
@@ -113,11 +164,7 @@ export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
                                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                         <span>{formatDistanceToNow(new Date(upload.createdAt), { addSuffix: true })}</span>
                                                         <span>•</span>
-                                                        <span className={
-                                                            upload.status?.toUpperCase() === 'FAILED' ? 'text-red-500' :
-                                                            upload.status?.toUpperCase() === 'PROCESSING' ? 'text-yellow-500' :
-                                                            'text-muted-foreground'
-                                                        }>
+                                                        <span className={getStatusColor(upload.status)}>
                                                             {getStatusText(upload.status)}
                                                         </span>
                                                     </div>
@@ -207,9 +254,7 @@ export function CsvUploadsView({ uploads, projectId }: CsvUploadsViewProps) {
                         ) : (
                             <Card>
                                 <CardContent className="p-8 text-center">
-                                    <AlertCircle className={`h-8 w-8 mx-auto mb-4 ${
-                                        activeUpload?.status?.toUpperCase() === 'FAILED' ? 'text-red-500' : 'text-yellow-500'
-                                    }`} />
+                                    <AlertCircle className={`h-8 w-8 mx-auto mb-4 ${getStatusColor(activeUpload?.status || '')}`} />
                                     <h3 className="text-lg font-semibold mb-2">
                                         {activeUpload?.status?.toUpperCase() === 'FAILED' ? 'Analysis Failed' : 'Analysis in Progress'}
                                     </h3>
