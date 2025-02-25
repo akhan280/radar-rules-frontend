@@ -9,7 +9,7 @@ export default async function HomeLayout({children}: {children: React.ReactNode}
     const user = await getAuthenticatedUser()   
 
     if (!user) {
-        redirect("/auth/signin")
+        redirect("/auth/sign-in")
     }
 
     const fullUser = await prisma.user.findUnique({

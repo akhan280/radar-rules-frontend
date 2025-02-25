@@ -22,8 +22,8 @@ export async function POST() {
             quantity: 1,
             },
         ],
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?canceled=true`,
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?success=true`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?canceled=true`,
         metadata: {
             userId: user.id,
             email: user.email,
