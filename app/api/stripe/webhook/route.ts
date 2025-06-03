@@ -25,22 +25,40 @@ export async function POST(req: Request) {
         );
         }
 
-        const session = event.data.object as Stripe.Checkout.Session;
+        const invoice = event.data.object as Stripe.Invoice | Stripe.Subscription;
 
-        if (event.type === "checkout.session.completed") {
-        // Update user's payment status
-        const userId = session.metadata?.userId;
+        if (event.type === "invoice.paid") {
+            // Update user's payment status
+            const userId = invoice.customer;
+            console.log("User ID:", userId);
 
-        if (!userId) {
-            return new NextResponse("No user ID in session metadata", {
-            status: 400,
+            if (!userId) {
+                return new NextResponse("No user ID in invoice metadata", {
+                status: 400,
+                });
+            }
+
+            await prisma.user.update({
+                where: { stripeCustomerId: userId },
+                data: { isPaid: true },
             });
         }
 
-        await prisma.user.update({
-            where: { id: userId },
-            data: { isPaid: true },
-        });
+        if (event.type === "customer.subscription.deleted") {
+            // Update user's payment status
+            const userId = invoice.customer;
+            console.log("User ID:", userId);
+
+            if (!userId) {
+                return new NextResponse("No user ID in invoice metadata", {
+                    status: 400,
+                });
+            }
+
+            await prisma.user.update({
+                where: { stripeCustomerId: userId },
+                data: { isPaid: false },
+            });
         }
 
         return new NextResponse(null, { status: 200 });
