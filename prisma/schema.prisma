@@ -8,42 +8,43 @@ datasource db {
 }
 
 model User {
-  id                    String    @id @map("id")
-  email                 String    @map("email")
-  firstName             String?   @map("first_name")
-  lastName              String?   @map("last_name")
-  isPaid               Boolean   @default(false) @map("is_paid")
-  hasCompletedOnboarding Boolean   @default(false) @map("has_completed_onboarding")
-  projects              Project[]
-  csvUploads            CsvUpload[]
+  id                     String      @id @map("id")
+  email                  String      @map("email")
+  firstName              String?     @map("first_name")
+  lastName               String?     @map("last_name")
+  stripeCustomerId       String?     @map("stripe_customer_id") @unique
+  hasCompletedOnboarding Boolean     @default(false) @map("has_completed_onboarding")
+  isPaid                 Boolean     @default(false) @map("is_paid")
+  csvUploads             CsvUpload[]
+  projects               Project[]
 
   @@map("users")
 }
 
 model Project {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  name        String    @map("name")
-  description String?   @map("description")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  user        User      @relation(fields: [userId], references: [id])
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  name        String      @map("name")
+  description String?     @map("description")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
   csvUploads  CsvUpload[]
+  user        User        @relation(fields: [userId], references: [id])
 
   @@map("projects")
 }
 
 model CsvUpload {
-  id             String    @id @default(cuid())
-  userId         String    @map("user_id")
-  projectId      String?   @map("project_id")
-  csvPath        String    @map("csv_path")
-  cleanedCsvPath String?   @map("cleaned_csv_path")
-  status         String  
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  user           User      @relation(fields: [userId], references: [id])
-  project        Project?  @relation(fields: [projectId], references: [id])
+  id             String                @id @default(cuid())
+  userId         String                @map("user_id")
+  projectId      String?               @map("project_id")
+  csvPath        String                @map("csv_path")
+  cleanedCsvPath String?               @map("cleaned_csv_path")
+  status         String
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  project        Project?              @relation(fields: [projectId], references: [id])
+  user           User                  @relation(fields: [userId], references: [id])
   results        FraudAnalysisResult[] @relation("CsvUploadResults")
 
   @@map("csv_uploads")
@@ -51,14 +52,14 @@ model CsvUpload {
 
 model FraudAnalysisResult {
   id                      String    @id @default(cuid())
-  projectId              String    @map("project_id")
-  csvUploadId            String    @map("csv_upload_id")
-  fraudCount             Int       @map("fraud_count")
-  f1OptimizedRules       Json      @map("f1_optimized_rules")
+  projectId               String    @map("project_id")
+  csvUploadId             String    @map("csv_upload_id")
+  fraudCount              Int       @map("fraud_count")
+  f1OptimizedRules        Json      @map("f1_optimized_rules")
   precisionOptimizedRules Json      @map("precision_optimized_rules")
-  moneyOptimizedRules    Json      @map("money_optimized_rules")
-  createdAt              DateTime  @default(now()) @map("created_at")
-  csvUpload              CsvUpload @relation("CsvUploadResults", fields: [csvUploadId], references: [id], onDelete: Cascade)
+  moneyOptimizedRules     Json      @map("money_optimized_rules")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  csvUpload               CsvUpload @relation("CsvUploadResults", fields: [csvUploadId], references: [id], onDelete: Cascade)
 
   @@map("fraud_analysis_results")
 }
